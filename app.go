@@ -35,6 +35,7 @@ var (
 	ca      string
 	port    string
 	name    string
+	socket  string
 	verbose bool
 )
 
@@ -45,6 +46,7 @@ func init() {
 	flag.StringVar(&ca, "cacert", "", "give me a CA chain, enforces mutual TLS")
 	flag.StringVar(&port, "port", getEnv("WHOAMI_PORT_NUMBER", "80"), "give me a port number")
 	flag.StringVar(&name, "name", os.Getenv("WHOAMI_NAME"), "give me a name")
+	flag.StringVar(&socket, "socket", os.Getenv("WHOAMI_SOCKET"), "give me a socket")
 }
 
 var upgrader = websocket.Upgrader{
@@ -65,6 +67,14 @@ func main() {
 	mux.Handle("/api", handle(apiHandler, verbose))
 	mux.Handle("/health", handle(healthHandler, verbose))
 	mux.Handle("/", handle(whoamiHandler, verbose))
+
+	if socket != "" {
+		listener, err := net.Listen("unix", socket)
+		if err != nil {
+			log.Fatal(err)
+		}
+		log.Fatal(http.Serve(listener, mux))
+	}
 
 	if cert == "" || key == "" {
 		log.Printf("Starting up on port %s", port)
